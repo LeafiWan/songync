@@ -24,6 +24,10 @@ class BaseClient(object):
     def __init__(self):
         self.session = requests.Session()
         self._login_flag = False
+        self.init()
+
+    def init(self):
+        pass
 
     def login(self, username, password):
         if self.do_login(username, password):
@@ -100,7 +104,7 @@ class BaiduMusicClient(BaseClient):
                 if not codestring:
                     logging.error('Could not get the codestring for get captcha url.')
                     return False
-                print 'Need verifying, please open the following url in your browser then input the catpcha you will see below before any refreshing:'
+                print 'It needs verifying, please open the following URL in your browser then input the catpcha you will see:'
                 print self._CAPTCHA_URL + '?' + codestring
                 verifycode = raw_input('verify code: ')
 
@@ -113,7 +117,7 @@ class BaiduMusicClient(BaseClient):
                         logging.error('status code: %d' % r.status_code)
 
             if 'BDUSS' not in r.cookies:
-                raise AuthException('Baidu music Auth failed. Reponse content:\n %s' % r.text)
+                raise AuthException('Baidu music authentication failed. Reponse content:\n %s' % r.text)
 
             print 'Login Baidu Music successfully.'
             return True
@@ -162,4 +166,37 @@ class DoubanFMClient(BaseClient):
 
 
 class XiamiClient(BaseClient):
-    pass
+
+    _LOGIN_URL = 'https://login.xiami.com/member/login'
+
+    def init(self):
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.65 Safari/537.36',
+        })
+
+    def do_login(self, email, password):
+        xiami_token = None
+        with retry(3, RequestException):
+            r = self.session.get('http://www.xiami.com')
+            if r.status_code != 200:
+                logging.error('status code: %d' % r.status_code)
+            xiami_token = r.cookies.get('_xiamitoken', None)
+
+        if xiami_token is None:
+            logging.error('Get _xiamitoken failed.')
+            return False
+
+        with retry(3, RequestException):
+            r = self.session.post(self._LOGIN_URL, data={
+                'email': email,
+                'password': password,
+                'done': '/',
+                '_xiamitoken': xiami_token,
+                'submit': u'登 录',
+            }, allow_redirects=False)
+            print r.status_code
+            if 'member_auth' not in r.cookies:
+                raise AuthException('Xiami Music authentication failed.')
+
+        print 'Login Xiami successfully.'
+        return True
