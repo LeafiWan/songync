@@ -4,6 +4,7 @@
 from setuptools import setup, find_packages
 
 install_requires = [
+    'beautifulsoup4',
     'setuptools',
     'requests>=2.0.0'
 ]

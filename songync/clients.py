@@ -10,6 +10,7 @@ import re
 from collections import namedtuple
 
 import requests
+from bs4 import BeautifulSoup
 from requests.exceptions import RequestException
 
 from songync.decorators import retry
@@ -40,7 +41,7 @@ class BaseClient(object):
     def get_fav_songs_info(self):
         raise NotImplementedError('This method has not been implemented.')
 
-    def search_song(self, singer, name):
+    def search_song(self, song_info):
         raise NotImplementedError('This method has not been implemented.')
 
     def mark_song_as_fav(self, song_token):
@@ -168,6 +169,7 @@ class DoubanFMClient(BaseClient):
 class XiamiClient(BaseClient):
 
     _LOGIN_URL = 'https://login.xiami.com/member/login'
+    _SEARCH_URL = 'http://www.xiami.com/ajax/search-index'
 
     def init(self):
         self.session.headers.update({
@@ -200,3 +202,25 @@ class XiamiClient(BaseClient):
 
         print 'Login Xiami successfully.'
         return True
+
+    def search_song(self, song_info):
+        html_content = ''
+        with retry(3, RequestException):
+            r = self.session.get(self._SEARCH_URL, params={
+                'key': ' '.join(song_info)
+            })
+            if r.status_code != 200:
+                logging.error('status code: %d' % r.status_code)
+                return None
+            html_content = r.text
+
+        soup = BeautifulSoup(html_content)
+        first_result = soup.ul.li.a
+        if not first_result or 'song_result' not in first_result.get('class', None):
+            return None
+
+        href = first_result.get('href', None)
+        m = re.search(r'\/song\/(\d+)', href)
+        if not m:
+            return None
+        return m.group(1)
