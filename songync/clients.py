@@ -170,33 +170,37 @@ class XiamiClient(BaseClient):
 
     _LOGIN_URL = 'https://login.xiami.com/member/login'
     _SEARCH_URL = 'http://www.xiami.com/ajax/search-index'
+    _ADD_FAV_URL = 'http://www.xiami.com/ajax/addtag'
 
     def init(self):
+        self._xiamitoken = None
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.65 Safari/537.36',
         })
 
     def do_login(self, email, password):
-        xiami_token = None
         with retry(3, RequestException):
             r = self.session.get('http://www.xiami.com')
             if r.status_code != 200:
                 logging.error('status code: %d' % r.status_code)
-            xiami_token = r.cookies.get('_xiamitoken', None)
+            self._xiamitoken = r.cookies.get('_xiamitoken', None)
 
-        if xiami_token is None:
+        if self._xiamitoken is None:
             logging.error('Get _xiamitoken failed.')
             return False
+
+        self.session.params = {
+            '_xiamitoken': self._xiamitoken
+        }
 
         with retry(3, RequestException):
             r = self.session.post(self._LOGIN_URL, data={
                 'email': email,
                 'password': password,
                 'done': '/',
-                '_xiamitoken': xiami_token,
+                '_xiamitoken': self._xiamitoken,
                 'submit': u'登 录',
             }, allow_redirects=False)
-            print r.status_code
             if 'member_auth' not in r.cookies:
                 raise AuthException('Xiami Music authentication failed.')
 
@@ -224,3 +228,23 @@ class XiamiClient(BaseClient):
         if not m:
             return None
         return m.group(1)
+
+    def mark_song_as_fav(self, song_token):
+        with retry(3, RequestException):
+            r = self.session.post(self._ADD_FAV_URL, data={
+                'type': 3,
+                'id': song_token,
+                'share': 0,
+                'shareTo': 'all',
+                '_xiamitoken': self._xiamitoken,
+            }, headers={
+                'Referer': 'http://www.xiami.com/song/%s' % song_token,
+            })
+            if r.status_code != 200:
+                logging.error('status code: %d' % r.status_code)
+                return False
+            res = r.json()
+            print r.text
+            if res.get('status', None) != 'ok':
+                return False
+        return True
