@@ -211,7 +211,7 @@ class XiamiClient(BaseClient):
         html_content = ''
         with retry(3, RequestException):
             r = self.session.get(self._SEARCH_URL, params={
-                'key': ' '.join(song_info)
+                'key': ' '.join([song_info.name, song_info.artist])
             })
             if r.status_code != 200:
                 logging.error('status code: %d' % r.status_code)
@@ -219,7 +219,13 @@ class XiamiClient(BaseClient):
             html_content = r.text
 
         soup = BeautifulSoup(html_content)
-        first_result = soup.ul.li.a
+
+        first_result = None
+        try:
+            first_result = soup.ul.li.a
+        except AttributeError:
+            return None
+
         if not first_result or 'song_result' not in first_result.get('class', None):
             return None
 
@@ -244,7 +250,6 @@ class XiamiClient(BaseClient):
                 logging.error('status code: %d' % r.status_code)
                 return False
             res = r.json()
-            print r.text
             if res.get('status', None) != 'ok':
                 return False
         return True
