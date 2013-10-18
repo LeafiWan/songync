@@ -163,7 +163,86 @@ class BaiduMusicClient(BaseClient):
 
 
 class DoubanFMClient(BaseClient):
-    pass
+
+    _LOGIN_URL = 'http://douban.fm/j/login'
+    _NEW_CAPTCHA_URL = 'http://douban.fm/j/new_captcha'
+    _FAV_SONG_URL = ''
+
+    def do_login(self, email, password):
+        res = None
+        with retry(3, RequestException):
+            login_data = {
+                'source': 'radio',
+                'alias': email,
+                'form_password': password,
+                'task': 'sync_channel_list'
+            }
+            r = self.session.post(self._LOGIN_URL, data=login_data)
+            if not r.status_code == 200:
+                logging.error('status code: %d' % r.status_code)
+                return False
+
+        res = r.json()
+        while res and res.get('err_no', None) == 1011:
+            # catpcha
+            captcha_id = self._get_captcha_id()
+            if not captcha_id:
+                return False
+            print 'It needs verifying, please open the following URL in your browser then input the catpcha you will see:'
+            print 'http://douban.fm/misc/captcha?size=m&id=' + captcha_id
+            verifycode = raw_input('verify code: ')
+            login_data['captcha_solution'] = verifycode
+            login_data['captcha_id'] = captcha_id
+            with retry(3, RequestException):
+                r = self.session.post(self._LOGIN_URL, data=login_data)
+                if not r.status_code == 200:
+                    logging.error('status code: %d' % r.status_code)
+                    return False
+                res = r.json()
+                print res
+
+        if 'user_info' not in res:
+            return False
+        return True
+
+    def _get_captcha_id(self):
+        captcha_id = None
+        with retry(3, RequestException):
+            r = self.session.get(self._NEW_CAPTCHA_URL)
+            if not r.status_code == 200:
+                logging.error('status code: %d' % r.status_code)
+                return None
+            captcha_id = r.json()
+
+        if not captcha_id:
+                logging.error('Get captcha id failed.')
+                return None
+        return captcha_id
+
+    def get_fav_songs_info(self):
+        infos = []
+        user_id_sign = self._get_user_id_sign()
+        return infos
+
+    def _get_user_id_sign(self):
+        html_content = None
+        with retry(3, RequestException):
+            r = self.session.get('http://douban.fm/mine#!type=liked')
+            if not r.status_code == 200:
+                logging.error('status code: %d' % r.status_code)
+                return None
+            html_content = r.text
+        if not html_content:
+            return None
+
+        matches = re.findall(r'<script>([\s\S]+?)<\/script>', html_content)
+        magic_script = matches[-2] + ";setTimeout(function(){console.log(window.user_id_sign)}, 1000);"
+        print "Plase run the following piece of code in your browser's console:\n"
+        print "/*=======================*/"
+        print magic_script
+        print "/*=======================*/"
+        user_id_sign = raw_input('\nEnter the return code: ')
+        return user_id_sign
 
 
 class XiamiClient(BaseClient):
