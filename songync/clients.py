@@ -166,7 +166,11 @@ class DoubanFMClient(BaseClient):
 
     _LOGIN_URL = 'http://douban.fm/j/login'
     _NEW_CAPTCHA_URL = 'http://douban.fm/j/new_captcha'
-    _FAV_SONG_URL = ''
+    _FAV_SONG_URL = 'http://douban.fm/j/play_record'
+
+    def init(self):
+        self._ck = None
+        self._bid = None
 
     def do_login(self, email, password):
         res = None
@@ -199,10 +203,15 @@ class DoubanFMClient(BaseClient):
                     logging.error('status code: %d' % r.status_code)
                     return False
                 res = r.json()
-                print res
 
         if 'user_info' not in res:
-            return False
+            raise AuthException('Xiami Music authentication failed.')
+
+        self._ck = res['user_info']['ck']
+        self._bid = self.session.cookies.get_dict()['bid'].replace('"', '')
+        if not self._ck or not self._bid:
+            logging.error('ck or bid could not be fetched.')
+            print False
         return True
 
     def _get_captcha_id(self):
@@ -221,7 +230,37 @@ class DoubanFMClient(BaseClient):
 
     def get_fav_songs_info(self):
         infos = []
+        start = 0
+        total = 100
+        page_size = 100
         user_id_sign = self._get_user_id_sign()
+        while start < total - 1:
+            song_infos = []
+            with retry(3, RequestException):
+                r = self.session.get(self._FAV_SONG_URL, params=dict(
+                    ck=self._ck,
+                    spbid=user_id_sign + self._bid,
+                    type='liked',
+                    start=start
+                ), headers={
+                    'Host': 'douban.fm',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.65 Safari/537.36',
+                    'Referer': 'http://douban.fm/mine?type=liked '
+                })
+                print r.request.url
+                if not r.status_code == 200:
+                    logging.error('status code: %d' % r.status_code)
+                    continue
+                res = r.json()
+                print res
+                page_size = res['per_page']
+                total = res['total']
+                start += page_size
+                song_infos = [SongInfo(s['title'], s['artist'], s['subject_title']) for s in res['songs']]
+
+            infos.extend(song_infos)
+        infos.reverse()
         return infos
 
     def _get_user_id_sign(self):
