@@ -211,7 +211,7 @@ class DoubanFMClient(BaseClient):
         self._bid = self.session.cookies.get_dict()['bid'].replace('"', '')
         if not self._ck or not self._bid:
             logging.error('ck or bid could not be fetched.')
-            print False
+            return False
         return True
 
     def _get_captcha_id(self):
@@ -248,12 +248,10 @@ class DoubanFMClient(BaseClient):
                     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.65 Safari/537.36',
                     'Referer': 'http://douban.fm/mine?type=liked '
                 })
-                print r.request.url
                 if not r.status_code == 200:
                     logging.error('status code: %d' % r.status_code)
                     continue
                 res = r.json()
-                print res
                 page_size = res['per_page']
                 total = res['total']
                 start += page_size
@@ -275,7 +273,7 @@ class DoubanFMClient(BaseClient):
             return None
 
         matches = re.findall(r'<script>([\s\S]+?)<\/script>', html_content)
-        magic_script = matches[-2] + ";setTimeout(function(){console.log(window.user_id_sign)}, 1000);"
+        magic_script = matches[-2] + ";setTimeout(function(){console.log(window.user_id_sign)}, 10);"
         print "Plase run the following piece of code in your browser's console:\n"
         print "/*=======================*/"
         print magic_script

@@ -4,11 +4,14 @@ SongYNC 可以帮助你在百度音乐、豆瓣 FM、虾米等音乐网站之间
 
 目前支持：
 
-- 同步百度收藏的歌曲至虾米。
+从：
 
-Coming soon:
+- 百度音乐
+- 豆瓣电台
 
-- 同步豆瓣音乐的收藏歌曲至虾米。
+同步至：
+
+- 虾米音乐
 
 ## 安装
 
@@ -20,9 +23,7 @@ Coming soon:
 
 ## 使用
 
-同步百度音乐的收藏歌曲至虾米：
-
-    $ python sync_baidu_to_xiami.py
+    $ python sync.py [-h] -f {baidu | douban} -t {xiami}
 
 ## TODO 
 
