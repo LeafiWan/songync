@@ -23,10 +23,6 @@ SongYNC 可以帮助你在百度音乐、豆瓣 FM、虾米等音乐网站之间
 
     $ python sync.py [-h] -f {baidu | douban} -t {xiami}
 
-## TODO 
-
-- 各个音乐网站的收藏歌曲可相互同步。
-
 ## WTFPL
 
                DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE

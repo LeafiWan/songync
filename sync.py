@@ -25,41 +25,35 @@ def parse_args():
     return args.from_, args.to
 
 
+def login(client, site):
+    while True:
+        username = raw_input('%s username: ' % site)
+        pwd = getpass('%s password: ' % site)
+        try:
+            client.login(username, pwd)
+            break
+        except AuthException:
+            print 'username and password are not match, please retry.'
+
+
 def main():
     from_, to = parse_args()
     print u"""Sync songs from %s to %s """ % (from_, to)
 
-    username = None
-    pwd = None
-
     from_client = _CLIENTS_MAP[from_]()
-    while True:
-        username = raw_input('%s username: ' % from_)
-        pwd = getpass('%s password: ' % from_)
-        try:
-            from_client.login(username, pwd)
-            break
-        except AuthException:
-            print 'username and password are not match, please retry.'
+    login(from_client, from_)
 
     to_client = _CLIENTS_MAP[to]()
-
-    while True:
-        username = raw_input('%s username: ' % to)
-        pwd = getpass('%s password: ' % to)
-        try:
-            to_client.login(username, pwd)
-            break
-        except AuthException:
-            print 'username and password are not match, please retry.'
+    login(to_client, to)
 
     print 'Start to fetch your favorite songs from %s, this will take some time.' % from_
     from_songs_info = from_client.get_fav_songs_info()
 
-    go_on = raw_input('Will sync %d songs, continue?[n] ' % len(from_songs_info))
-    if not go_on or go_on == 'n':
+    confirm = raw_input('Will sync %d songs, continue?[n] ' % len(from_songs_info))
+    if not confirm or confirm == 'n':
         print 'Aborted.'
         return
+
     for info in from_songs_info:
         song_token = to_client.search_song(info)
         if not song_token:
